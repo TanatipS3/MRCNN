@@ -39,16 +39,18 @@ def extract_bboxes(mask):
     """
     boxes = np.zeros([mask.shape[-1], 4], dtype=np.int32)
     for i in range(mask.shape[-1]):
-        m = mask[:, :, i]
+         #selects the entire instance of the mask in `i`
+        instance_m = instance_m[:, :, i]
         # Bounding box.
-        horizontal_indicies = np.where(np.any(m, axis=0))[0]
-        vertical_indicies = np.where(np.any(m, axis=1))[0]
-        if horizontal_indicies.shape[0]:
-            x1, x2 = horizontal_indicies[[0, -1]]
-            y1, y2 = vertical_indicies[[0, -1]]
-            # x2 and y2 should not be part of the box. Increment by 1.
-            x2 += 1
-            y2 += 1
+        non_zeros_row= np.any(instances_m, axis=0)
+        non_zeros_col np.any(instances_m, axis=1)
+         #check if pixels belong in the instance
+        if non_zeros_row.any():
+            x1,x2 = np.where(non_zeros_row)[0][[0,-1]]
+            y1,y2 = np.where(non_zeros_cols)[0][[0,-1]]
+            
+            x2 +=1
+            y2 +=1
         else:
             # No mask for this instance. Might happen due to
             # resizing or cropping. Set bbox to zeros
