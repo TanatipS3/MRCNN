@@ -1,29 +1,51 @@
-"""
-Mask R-CNN
-Configurations and data loading code for the synthetic Shapes dataset.
-This is a duplicate of the code in the noteobook train_shapes.ipynb for easy
-import into other notebooks, such as inspect_model.ipynb.
-
-Copyright (c) 2017 Matterport, Inc.
-Licensed under the MIT License (see LICENSE for details)
-Written by Waleed Abdulla
-"""
-
+# -*- coding: utf-8 -*-
 import os
 import sys
-import math
 import random
+import math
+import re
+import time
 import numpy as np
 import cv2
+import matplotlib
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")
+
+# /mnt/workspace/maskRCNN_learn_env/Mask_RCNN/mrcnn
+# /mnt/workspace/maskRCNN_learn_env/Mask_RCNN/samples/shapes/PYFileCopyFromTrain_shapes_ipynb.py
+# /mnt/workspace/maskRCNN_learn_env/Mask_RCNN/samples/shapes/train_shapes.ipynb
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
+sys.path.append(r"/mnt/workspace/maskRCNN_learn_env/Mask_RCNN/")
+#sys.path：这是一个由字符串组成的列表，每个字符串表示一个目录的绝对路径。
+# 当你尝试导入一个模块（例如 import some_module）时，Python 解释器会按照 sys.path 列表中的顺序来查找这个模块。
+
 from mrcnn.config import Config
 from mrcnn import utils
+import mrcnn.model as modellib
+from mrcnn import visualize
+from mrcnn.model import log
 
+# %matplotlib inline 
+#用于将图像嵌入显示进web页面当中
+
+# Directory to save logs and trained model
+MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+
+# Local path to trained weights file
+COCO_MODEL_PATH = os.path.join("/mnt/workspace/maskRCNN_learn_env/Mask_RCNN", "mask_rcnn_coco.h5")
+# Download COCO trained weights from Releases if needed
+if not os.path.exists(COCO_MODEL_PATH):
+    utils.download_trained_weights(COCO_MODEL_PATH)
+
+############################################################
+#  GenerateConfig
+############################################################
 
 class ShapesConfig(Config):
     """Configuration for training on the toy shapes dataset.
@@ -36,7 +58,7 @@ class ShapesConfig(Config):
     # Train on 1 GPU and 8 images per GPU. We can put multiple images on each
     # GPU because the images are small. Batch size is 8 (GPUs * images/GPU).
     GPU_COUNT = 1
-    IMAGES_PER_GPU = 2
+    IMAGES_PER_GPU = 4
 
     # Number of classes (including background)
     NUM_CLASSES = 1 + 3  # background + 3 shapes
@@ -54,11 +76,27 @@ class ShapesConfig(Config):
     TRAIN_ROIS_PER_IMAGE = 32
 
     # Use a small epoch since the data is simple
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 10
 
     # use small validation steps since the epoch is small
     VALIDATION_STEPS = 5
+config = ShapesConfig()
 
+
+def get_ax(rows=1, cols=1, size=8):
+    """Return a Matplotlib Axes array to be used in
+    all visualizations in the notebook. Provide a
+    central point to control graph sizes.
+    
+    Change the default size attribute to control the size
+    of rendered images
+    """
+    _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
+    return ax
+
+############################################################
+#  MakeDataset
+############################################################
 
 class ShapesDataset(utils.Dataset):
     """Generates the shapes synthetic dataset. The dataset consists of simple
@@ -116,33 +154,31 @@ class ShapesDataset(utils.Dataset):
         count = len(shapes)
         mask = np.zeros([info['height'], info['width'], count], dtype=np.uint8)
         for i, (shape, _, dims) in enumerate(info['shapes']):
-            mask[:, :, i:i + 1] = self.draw_shape(mask[:, :, i:i + 1].copy(),
-                                                  shape, dims, 1)
+            mask[:, :, i:i+1] = self.draw_shape(mask[:, :, i:i+1].copy(),
+                                                shape, dims, 1)
         # Handle occlusions
         occlusion = np.logical_not(mask[:, :, -1]).astype(np.uint8)
-        for i in range(count - 2, -1, -1):
+        for i in range(count-2, -1, -1):
             mask[:, :, i] = mask[:, :, i] * occlusion
-            occlusion = np.logical_and(
-                occlusion, np.logical_not(mask[:, :, i]))
+            occlusion = np.logical_and(occlusion, np.logical_not(mask[:, :, i]))
         # Map class names to class IDs.
         class_ids = np.array([self.class_names.index(s[0]) for s in shapes])
-        return mask, class_ids.astype(np.int32)
+        return mask.astype(bool), class_ids.astype(np.int32)
 
     def draw_shape(self, image, shape, dims, color):
         """Draws a shape from the given specs."""
         # Get the center x, y and the size s
         x, y, s = dims
         if shape == 'square':
-            image = cv2.rectangle(image, (x - s, y - s),
-                                  (x + s, y + s), color, -1)
+            cv2.rectangle(image, (x-s, y-s), (x+s, y+s), color, -1)
         elif shape == "circle":
-            image = cv2.circle(image, (x, y), s, color, -1)
+            cv2.circle(image, (x, y), s, color, -1)
         elif shape == "triangle":
-            points = np.array([[(x, y - s),
-                                (x - s / math.sin(math.radians(60)), y + s),
-                                (x + s / math.sin(math.radians(60)), y + s),
+            points = np.array([[(x, y-s),
+                                (x-s/math.sin(math.radians(60)), y+s),
+                                (x+s/math.sin(math.radians(60)), y+s),
                                 ]], dtype=np.int32)
-            image = cv2.fillPoly(image, points, color)
+            cv2.fillPoly(image, points, color)
         return image
 
     def random_shape(self, height, width):
@@ -163,7 +199,7 @@ class ShapesDataset(utils.Dataset):
         y = random.randint(buffer, height - buffer - 1)
         x = random.randint(buffer, width - buffer - 1)
         # Size
-        s = random.randint(buffer, height // 4)
+        s = random.randint(buffer, height//4)
         return shape, color, (x, y, s)
 
     def random_image(self, height, width):
@@ -182,10 +218,55 @@ class ShapesDataset(utils.Dataset):
             shape, color, dims = self.random_shape(height, width)
             shapes.append((shape, color, dims))
             x, y, s = dims
-            boxes.append([y - s, x - s, y + s, x + s])
+            boxes.append([y-s, x-s, y+s, x+s])
         # Apply non-max suppression wit 0.3 threshold to avoid
         # shapes covering each other
-        keep_ixs = utils.non_max_suppression(
-            np.array(boxes), np.arange(N), 0.3)
+        keep_ixs = utils.non_max_suppression(np.array(boxes), np.arange(N), 0.3)
         shapes = [s for i, s in enumerate(shapes) if i in keep_ixs]
         return bg_color, shapes
+
+############################################################
+#  MakeTraining dataset-Validation dataset
+############################################################
+
+# Training dataset
+dataset_train = ShapesDataset()
+dataset_train.load_shapes(500, config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1])
+dataset_train.prepare()
+
+# Validation dataset
+dataset_val = ShapesDataset()
+dataset_val.load_shapes(50, config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1])
+dataset_val.prepare()
+
+model = modellib.MaskRCNN(mode="training", config=config,
+                          model_dir=MODEL_DIR)
+
+# Which weights to start with?
+init_with = "coco"  # imagenet, coco, or last
+
+if init_with == "imagenet":
+    model.load_weights(model.get_imagenet_weights(), by_name=True)
+elif init_with == "coco":
+    # Load weights trained on MS COCO, but skip layers that
+    # are different due to the different number of classes
+    # See README for instructions to download the COCO weights
+    model.load_weights(COCO_MODEL_PATH, by_name=True,
+                       exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", 
+                                "mrcnn_bbox", "mrcnn_mask"])
+elif init_with == "last":
+    # Load the last model you trained and continue training
+    model.load_weights(model.find_last(), by_name=True)
+
+############################################################
+#  StartTrain
+############################################################
+
+if __name__ =="__mian__" :
+    model.train(dataset_train, dataset_val, 
+            learning_rate=config.LEARNING_RATE, 
+            epochs=1, 
+            layers='heads')
+
+
+
