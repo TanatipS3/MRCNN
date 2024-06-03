@@ -21,7 +21,7 @@ ROOT_DIR = os.path.abspath("../../")
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
-sys.path.append(r"/mnt/workspace/maskRCNN_learn_env/Mask_RCNN/")
+sys.path.append(r"/mnt/workspace/LearnMaskRCNN/Mask_RCNN/")
 #sys.path：这是一个由字符串组成的列表，每个字符串表示一个目录的绝对路径。
 # 当你尝试导入一个模块（例如 import some_module）时，Python 解释器会按照 sys.path 列表中的顺序来查找这个模块。
 
@@ -38,7 +38,7 @@ from mrcnn.model import log
 MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 
 # Local path to trained weights file
-COCO_MODEL_PATH = os.path.join("/mnt/workspace/maskRCNN_learn_env/Mask_RCNN", "mask_rcnn_coco.h5")
+COCO_MODEL_PATH = os.path.join("/mnt/workspace/LearnMaskRCNN/Mask_RCNN/", "mask_rcnn_coco.h5")
 # Download COCO trained weights from Releases if needed
 if not os.path.exists(COCO_MODEL_PATH):
     utils.download_trained_weights(COCO_MODEL_PATH)
@@ -58,7 +58,7 @@ class ShapesConfig(Config):
     # Train on 1 GPU and 8 images per GPU. We can put multiple images on each
     # GPU because the images are small. Batch size is 8 (GPUs * images/GPU).
     GPU_COUNT = 1
-    IMAGES_PER_GPU = 4
+    IMAGES_PER_GPU = 1
 
     # Number of classes (including background)
     NUM_CLASSES = 1 + 3  # background + 3 shapes
@@ -262,11 +262,11 @@ elif init_with == "last":
 #  StartTrain
 ############################################################
 
-if __name__ =="__mian__" :
-    model.train(dataset_train, dataset_val, 
-            learning_rate=config.LEARNING_RATE, 
-            epochs=1, 
-            layers='heads')
+
+model.train(dataset_train, dataset_val, 
+        learning_rate=config.LEARNING_RATE, 
+        epochs=1, 
+        layers='heads')
 
 
 

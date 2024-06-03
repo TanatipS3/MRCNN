@@ -4,7 +4,6 @@ Pillow
 cython
 matplotlib
 scikit-image
-opencv-python
 h5py
 imgaug
 IPython[all]
