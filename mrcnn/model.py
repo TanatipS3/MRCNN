@@ -2321,6 +2321,7 @@ class MaskRCNN():
 
         # Pre-defined layer regular expressions
         layer_regex = {
+            # regex 正则项表达式
             # all layers but the backbone
             "heads": r"(mrcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
             # From a specific Resnet stage and up
@@ -2349,8 +2350,10 @@ class MaskRCNN():
         callbacks = [
             keras.callbacks.TensorBoard(log_dir=self.log_dir,
                                         histogram_freq=0, write_graph=False, write_images=False),
+            # keras.callbacks.TensorBoard：这个回调函数用于生成 TensorBoard 日志，方便在训练期间进行可视化。
             keras.callbacks.ModelCheckpoint(self.checkpoint_path,
                                             verbose=0, save_weights_only=True),
+            # keras.callbacks.ModelCheckpoint：这个回调函数用于在每个训练周期结束时保存模型的权重。
         ]
 
         # Add custom callbacks to the list
@@ -2368,6 +2371,9 @@ class MaskRCNN():
         # https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
         if os.name == 'nt':
             workers = 0
+        # os.name 返回当前操作系统的名称。常见的值包括：
+        # 'posix'：表示类 Unix 系统（如 Linux 和 Mac OS）。
+        # 'nt'：表示 Windows 系统。
         else:
             workers = multiprocessing.cpu_count()
 

@@ -94,6 +94,7 @@ class BalloonDataset(utils.Dataset):
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
+        # 根据路径中的文件夹的名称和位置设置的参数，将这两个添加到系统路径当中
 
         # Load annotations
         # VGG Image Annotator (up to version 1.6) saves each image in the form:
@@ -112,6 +113,7 @@ class BalloonDataset(utils.Dataset):
         # We mostly care about the x and y coordinates of each region
         # Note: In VIA 2.0, regions was changed from a dict to a list.
         annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))
+        # 打开具体的标注json信息
         annotations = list(annotations.values())  # don't need the dict keys
 
         # The VIA tool saves images in the JSON even if they don't have any
@@ -134,7 +136,8 @@ class BalloonDataset(utils.Dataset):
             # the image. This is only managable since the dataset is tiny.
             image_path = os.path.join(dataset_dir, a['filename'])
             image = skimage.io.imread(image_path)
-            height, width = image.shape[:2]
+            height, width = image.shape[:2] 
+            # 数组的切片操作，用于获取数组的前两个元素
 
             self.add_image(
                 "balloon",
